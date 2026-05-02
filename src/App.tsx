@@ -286,6 +286,13 @@ export default function App() {
               <button className="p-3 bg-white/20 rounded-2xl backdrop-blur-md hover:bg-white/30 transition-all">
                 <Bell size={20} />
               </button>
+              <button 
+                onClick={() => signOut(auth)}
+                className="p-3 bg-white/20 rounded-2xl backdrop-blur-md hover:bg-red-500/40 transition-all text-white group"
+                title="Logout"
+              >
+                <LogOut size={20} className="group-hover:scale-110 transition-transform" />
+              </button>
             </div>
           </div>
         </header>
