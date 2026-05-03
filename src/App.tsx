@@ -44,7 +44,8 @@ import {
   Menu,
   Bell,
   User as UserIcon,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -574,6 +575,20 @@ function TransactionsView({
   userId: string,
   onEditTransaction: (t: Transaction | null) => void
 }) {
+  const [isPrintMode, setIsPrintMode] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const matchesType = filterType === 'all' || t.type === filterType;
+      const matchesSearch = t.category.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           (t.note || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesType && matchesSearch;
+    });
+  }, [transactions, filterType, searchQuery]);
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Hapus transaksi ini?')) return;
     try {
@@ -583,6 +598,62 @@ function TransactionsView({
     }
   };
 
+  if (isPrintMode) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-white p-8 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-start mb-8 border-b pb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Laporan Transaksi</h1>
+              <p className="text-slate-500">SIMANDU - Personal Finance Manager</p>
+              <p className="text-xs mt-1 text-slate-400 font-mono">Dicetak pada: {format(new Date(), 'dd MMM yyyy HH:mm')}</p>
+            </div>
+            <div className="flex gap-2 print:hidden">
+              <button 
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md"
+              >
+                Cetak Skrg
+              </button>
+              <button 
+                onClick={() => setIsPrintMode(false)}
+                className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-200">
+                <th className="py-3 font-bold text-slate-700">Tanggal</th>
+                <th className="py-3 font-bold text-slate-700">Kategori</th>
+                <th className="py-3 font-bold text-slate-700">Catatan</th>
+                <th className="py-3 font-bold text-slate-700 text-right">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map(t => (
+                <tr key={t.id} className="border-b border-slate-100">
+                  <td className="py-3 text-sm">{format(parseISO(t.date), 'dd MMM yyyy')}</td>
+                  <td className="py-3 text-sm font-medium uppercase">{t.category}</td>
+                  <td className="py-3 text-sm text-slate-500 italic">{t.note || '-'}</td>
+                  <td className={cn(
+                    "py-3 text-sm font-bold text-right",
+                    t.type === 'income' ? 'text-green-600' : 'text-red-600'
+                  )}>
+                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div 
       initial={{ opacity: 0, x: 20 }}
@@ -590,13 +661,73 @@ function TransactionsView({
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6"
     >
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg text-sm font-medium text-slate-600">
-              <Filter size={16} /> Filter
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <button 
+                onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  isFilterMenuOpen || filterType !== 'all' ? "bg-primary-50 text-primary-600 border border-primary-100" : "bg-slate-50 text-slate-600 border border-transparent"
+                )}
+              >
+                <Filter size={16} /> Filter {filterType !== 'all' && `(${filterType === 'income' ? 'Masuk' : 'Keluar'})`}
+              </button>
+              
+              <AnimatePresence>
+                {isFilterMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsFilterMenuOpen(false)}></div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-20"
+                    >
+                      {[
+                        { id: 'all', label: 'Semua' },
+                        { id: 'income', label: 'Pemasukan' },
+                        { id: 'expense', label: 'Pengeluaran' }
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setFilterType(item.id as any);
+                            setIsFilterMenuOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-4 py-2 text-sm transition-colors",
+                            filterType === item.id ? "bg-primary-50 text-primary-600 font-bold" : "text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="relative flex-1 min-w-[200px]">
+              <input 
+                type="text"
+                placeholder="Cari kategori atau catatan..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+
+            <button 
+              onClick={() => setIsPrintMode(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100"
+            >
+              <Printer size={16} /> Print
             </button>
           </div>
+
           <button 
             onClick={() => onEditTransaction(null)}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold shadow-md shadow-primary-600/20"
@@ -617,7 +748,7 @@ function TransactionsView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {transactions.map(t => (
+              {filteredTransactions.map(t => (
                 <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 text-sm px-2">{format(parseISO(t.date), 'dd MMM yyyy')}</td>
                   <td className="py-4 px-2">
@@ -652,9 +783,9 @@ function TransactionsView({
               ))}
             </tbody>
           </table>
-          {transactions.length === 0 && (
+          {filteredTransactions.length === 0 && (
             <div className="p-12 text-center text-slate-400">
-              Belum ada riwayat transaksi
+              {transactions.length === 0 ? "Belum ada riwayat transaksi" : "Tidak ada transaksi yang sesuai filter"}
             </div>
           )}
         </div>

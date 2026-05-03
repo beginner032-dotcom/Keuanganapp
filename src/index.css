@@ -22,5 +22,45 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }
+
+  @media print {
+    aside, 
+    header:not(.print-header), 
+    nav, 
+    .lg\:hidden,
+    .fixed,
+    .shadow-2xl,
+    button:not(.print-visible),
+    .print\:hidden {
+      display: none !important;
+    }
+
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    .min-h-screen {
+      min-height: auto !important;
+      background: white !important;
+    }
+
+    .bg-slate-50 {
+      background: white !important;
+    }
+
+    body {
+      background: white !important;
+      color: black !important;
+      font-size: 10pt;
+    }
+
+    * {
+      box-shadow: none !important;
+      border-color: #e2e8f0 !important;
+    }
+  }
 }
 
